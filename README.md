@@ -1,213 +1,176 @@
-# Estrategia Estocástico - Cuentas de Fondeo
+# Investigación: Estrategia de Trading con Indicador Estocástico para Dow Jones en Cuentas de Fondeo
 
-## Descripción
+## Resumen Ejecutivo
 
-Estrategia de trading diseñada específicamente para **cuentas de fondeo (funded accounts)** que utiliza el indicador estocástico como señal principal. Implementa controles de riesgo ultra-conservadores para cumplir con los requisitos estrictos de las empresas de fondeo.
+Esta investigación analiza la implementación de una estrategia de trading basada en el indicador estocástico aplicada exclusivamente al índice Dow Jones Industrial Average (DJI), diseñada específicamente para operar en cuentas de fondeo con restricciones estrictas de gestión de riesgo.
 
-## Características Principales
+**Objetivo Principal:** Desarrollar un algoritmo de trading que maximice la probabilidad de pasar las dos fases de evaluación requeridas (6% + 6%) manteniendo un perfil de riesgo conservador compatible con las limitaciones de drawdown diario (3%) y total (6%).
 
-### Control de Riesgo Ultra-Conservador
-- **Límite de pérdida diaria**: 3.0% máximo
-- **Límite de pérdida total**: 6.0% máximo
-- **Stop Loss obligatorio**: 2.5% por posición
-- **Tamaño de posición**: 10% del equity
-- **Máximo 1 trade por día**: Evita overtrading
+## 1. Marco de Referencia: Cuentas de Fondeo
 
-### Protecciones Adicionales
-- **Stop Loss de emergencia**: 3.0% como último recurso
-- **Cierre automático**: Al alcanzar cualquier límite
-- **Sin comisiones**: Optimizado para backtesting sin costos
+### Características Operativas
+- **Drawdown Máximo Diario:** 3% del capital inicial
+- **Drawdown Máximo Total:** 6% del capital inicial
+- **Fases de Evaluación:**
+  - Fase 1: Obtener 6% de rentabilidad
+  - Fase 2: Obtener 6% adicional de rentabilidad
+- **Tiempo Estimado:** 12-18 meses para completar ambas fases
+- **Restricción Crítica:** Una sola violación de límites puede resultar en fallo inmediato
 
-### Sistema de Trading
-- **Indicador principal**: Estocástico (14, 3, 3)
-- **Entrada**: Cruce del %K por encima de 20 (sobreventa)
-- **Salida**: Cruce del %K por debajo de 80 (sobrecompra)
-- **Direccionalidad**: Solo posiciones largas (long only)
+### Implicaciones Estratégicas
+1. **Preservación de Capital:** Prioridad absoluta sobre maximización de ganancias
+2. **Consistencia:** Preferencia por ganancias pequeñas y regulares
+3. **Gestión de Riesgo:** Implementación de stop-loss estrictos
+4. **Paciencia Operativa:** Selección cuidadosa de oportunidades de alta probabilidad
 
-## Parámetros Configurables
+## 2. Indicador Estocástico: Fundamentos Teóricos
 
-### Estocástico
-```pinescript
-stoch_length = 14        // Período del estocástico
-smooth_k = 3            // Suavizado del %K
-smooth_d = 3            // Suavizado del %D
-```
+### Definición y Cálculo
+El indicador estocástico mide la posición del precio de cierre actual en relación al rango de precios durante un período específico:
 
-### Niveles de Entrada/Salida
-```pinescript
-nivel_compra = 20.0     // Nivel de sobreventa
-nivel_venta = 80.0      // Nivel de sobrecompra
-```
+**Fórmulas:**
+- %K = [(Cierre - Mínimo de n períodos) / (Máximo de n períodos - Mínimo de n períodos)] × 100
+- %D = Media móvil simple de %K durante m períodos
 
-### Gestión de Riesgo
-```pinescript
-max_perdida_diaria = 3.0        // Límite diario (%)
-max_perdida_total = 6.0         // Límite total (%)
-stop_loss_percent = 2.5         // Stop Loss (%)
-max_perdida_por_trade = 3.0     // Stop emergencia (%)
-```
+### Parámetros de Configuración Propuestos
+1. **Configuración Conservadora:** (14,3,3)
+   - Período de cálculo: 14
+   - %K smoothing: 3
+   - %D smoothing: 3
 
-## Lógica de Trading
+2. **Configuración Sensible:** (8,3,3)
+   - Mayor sensibilidad a movimientos de precio
+   - Más señales pero mayor ruido
 
-### Condiciones de Entrada (LONG)
-1. Estocástico %K cruza hacia arriba el nivel 20
-2. No hay posiciones abiertas
-3. No se ha alcanzado el límite de trades diarios (1)
-4. La cuenta no está protegida (límites no alcanzados)
-5. Trading en long está habilitado
+3. **Configuración Filtrada:** (21,5,5)
+   - Menor frecuencia de señales
+   - Mayor confiabilidad de tendencias
 
-### Condiciones de Salida
-1. **Salida normal**: %K cruza hacia abajo el nivel 80
-2. **Stop Loss**: Pérdida alcanza el 2.5%
-3. **Stop de emergencia**: Pérdida alcanza el 3.0%
-4. **Límites de cuenta**: Se activa la protección automática
+## 3. Análisis del Dow Jones como Instrumento
 
-### Sistema de Protección en Cascada
-```
-1. Stop Loss normal (2.5%)
-2. Stop Loss de emergencia (3.0%)
-3. Cierre por límite diario (3.0%)
-4. Cierre por límite total (6.0%)
-```
+### Ventajas Operativas
+- **Liquidez:** Excelente para ejecución de órdenes
+- **Volatilidad Moderada:** Adecuada para gestión de riesgo
+- **Patrones Técnicos:** Bien definidos y repetitivos
+- **Horarios de Trading:** Compatible con diferentes zonas horarias
 
-## Interfaz Visual
+### Características de Volatilidad
+- **Volatilidad Diaria Promedio:** 0.8% - 1.5%
+- **Rango Intradiario:** Generalmente 200-400 puntos
+- **Sesiones de Mayor Actividad:** Apertura NYSE y solapamiento europeo
 
-### Indicadores en Gráfico
-- Línea azul: %K suavizado
-- Línea roja: %D suavizado
-- Líneas horizontales: Niveles 20 y 80
-- Zonas de color: Verde (sobreventa), Roja (sobrecompra)
-- Señales: Triángulos verdes (compra)
+## 4. Estrategia de Trading Propuesta
 
-### Tabla de Información
-Panel en tiempo real que muestra:
-- Estado de la cuenta (Activa/Bloqueada)
-- Pérdida diaria y total actual
-- Valor actual del estocástico %K
-- Número de trades del día
-- Posición actual
-- Niveles de stop loss
+### Señales de Entrada
+**Compra (Long):**
+- %K cruza por encima de %D
+- Ambos indicadores por debajo de 30 (zona de sobreventa)
+- Confirmación con volumen creciente
+- Stop loss: 1% del capital
 
-### Alertas Visuales
-- **Fondo rojo**: Límite diario alcanzado
-- **Fondo morado**: Límite total alcanzado
-- **Colores de alerta**: Semáforo según proximidad a límites
+**Venta (Short):**
+- %K cruza por debajo de %D
+- Ambos indicadores por encima de 70 (zona de sobrecompra)
+- Confirmación con volumen creciente
+- Stop loss: 1% del capital
 
-## Resultados de Backtesting
+### Gestión de Posiciones
+1. **Tamaño de Posición Máximo:** 2% del capital por operación
+2. **Stop Loss:** Nunca superior al 1% del capital total
+3. **Take Profit:** Relación riesgo/beneficio mínima 1:1.5
+4. **Máximo de Operaciones Simultáneas:** 1 posición activa
 
-### Métricas Clave (Enero 2019 - Septiembre 2025)
-- **Rentabilidad total**: +4.91% (+$49,078.63)
-- **Máximo drawdown**: 2.57% ($27,072.47)
-- **Total de trades**: 210
-- **Tasa de aciertos**: 60.48% (127 ganadoras / 83 perdedoras)
-- **Profit Factor**: 1.352
-- **Sharpe Ratio**: -0.331
-- **Sortino Ratio**: -0.388
+### Filtros Adicionales
+- **Filtro de Tendencia:** Media móvil de 50 períodos
+- **Filtro de Momentum:** RSI entre 30-70 para entradas
+- **Filtro Temporal:** Evitar operaciones en noticias de alto impacto
 
-### Rendimiento por Tipo
-- **Promedio por trade**: +$233.71 (+0.23%)
-- **Trade ganador promedio**: +$1,483.37 (+1.46%)
-- **Trade perdedor promedio**: -$1,678.43 (-1.65%)
-- **Ratio ganancia/pérdida**: 0.884
-- **Trade más rentable**: +$10,548.80
+## 5. Gestión de Riesgo Específica
 
-### Performance Visual
+### Control de Drawdown Diario
+- **Pérdida Máxima Diaria:** 2.5% (buffer de 0.5%)
+- **Cierre Automático:** Todas las posiciones al alcanzar el límite
+- **Suspensión:** No nuevas operaciones hasta el día siguiente
 
-#### Gráfico de Equity
-![Curva de Equity](1.png)
-*Evolución del capital desde enero 2019 hasta septiembre 2025. Muestra crecimiento constante con drawdown máximo controlado de 2.57%, ideal para cuentas de fondeo.*
+### Control de Drawdown Total
+- **Pérdida Máxima Acumulada:** 5% (buffer de 1%)
+- **Reducción de Exposición:** Progresiva según aproximación al límite
+- **Pausa Operativa:** Evaluación de estrategia al alcanzar 4% de pérdida
 
-#### Métricas de Performance
-![Performance Metrics](2.png)
-*Resumen detallado de métricas: Net Profit $49,078 (+4.91%), Gross Profit $188,388 vs Gross Loss $139,309. Máximo equity run-up de 5.21%.*
+### Reglas de Preservación
+1. **Semana de 3 pérdidas consecutivas:** Reducir tamaño de posición al 50%
+2. **Mes con resultado negativo:** Revisión completa de parámetros
+3. **Aproximación al 4% de drawdown:** Operaciones solo de alta probabilidad
 
-#### Análisis de Trades
-![Trade Analysis](3.png)
-*Distribución de 210 trades totales: 127 ganadoras (60.48%) y 83 perdedoras. Promedio por operación de $233.71 con consistencia notable.*
+## 6. Análisis de Rendimiento Esperado
 
-#### Ratios de Riesgo/Rendimiento
-![Risk Performance Ratios](4.png)
-*Sharpe Ratio: -0.331, Sortino Ratio: -0.388, Profit Factor: 1.352. Los ratios negativos indican alta volatilidad relativa al rendimiento, típico en estrategias de momentum.*
+### Proyecciones Conservadoras
+- **Operaciones Mensuales:** 15-25 trades
+- **Tasa de Éxito:** 55-60%
+- **Rendimiento Mensual Objetivo:** 1-2%
+- **Tiempo para Fase 1:** 4-6 meses
+- **Tiempo para Fase 2:** 4-6 meses adicionales
 
-#### Lista de Trades Recientes
-![Recent Trades](5.png)
-*Últimas operaciones mostrando la consistencia de la estrategia. Trade #211 abierto con +$40.26 (+0.04%), demostrando el control de riesgo efectivo.*
+### Escenarios de Estrés
+1. **Mercado Lateral:** Reducción de frecuencia operativa
+2. **Alta Volatilidad:** Ajuste de parámetros estocásticos
+3. **Tendencias Prolongadas:** Filtros adicionales de momentum
 
-#### Historial de Trades 2020
-![2020 Trades History](6.png)
-*Ejemplo de trades durante 2020, mostrando variedad de resultados: desde pérdidas por SL 2.5% hasta ganancias significativas por salidas de estocástico.*
+## 7. Implementación Técnica
 
-## Advertencias y Consideraciones
+### Requisitos del Sistema
+- **Plataforma:** MetaTrader 4/5 o TradingView
+- **Ejecución:** Algoritmo automatizado con supervisión manual
+- **Monitoreo:** Dashboard de métricas de riesgo en tiempo real
+- **Backup:** Sistemas de contingencia para fallos técnicos
 
-### Limitaciones
-- **Sharpe Ratio negativo (-0.87)**: Indica alta volatilidad relativa al retorno
-- **Sortino Ratio negativo (-0.699)**: Volatilidad a la baja considerable
-- Solo funciona en mercados alcistas (long only)
-- Dependiente de la efectividad del estocástico en el timeframe elegido
+### Métricas de Seguimiento
+1. **Diarias:** Drawdown, número de operaciones, resultado P&L
+2. **Semanales:** Tasa de éxito, máximo favorable/adverso
+3. **Mensuales:** Sharpe ratio, máximo drawdown, cumplimiento de objetivos
 
-### Recomendaciones de Uso
-1. **Timeframes sugeridos**: 1H, 4H, 1D
-2. **Mercados apropiados**: Índices, forex principales, criptomonedas estables
-3. **Capital mínimo**: $10,000 para proper money management
-4. **Monitoreo**: Revisar límites diarios regularmente
+## 8. Plan de Optimización Continua
 
-## Instalación y Configuración
+### Backtesting Regular
+- **Períodos de Análisis:** Últimos 2 años de datos
+- **Walk-Forward Testing:** Validación cada 3 meses
+- **Optimización de Parámetros:** Ajuste según condiciones de mercado
 
-### En TradingView
-1. Abrir Pine Script Editor
-2. Pegar el código completo
-3. Guardar como "Estrategia Estocástico - Fondeo"
-4. Aplicar al gráfico deseado
-5. Configurar parámetros según preferencias
+### Adaptaciones Estacionales
+- **Q4:** Ajuste por volatilidad navideña
+- **Verano:** Consideración de menor liquidez
+- **Eventos Macro:** Suspensión temporal en anuncios Fed
 
-### Configuración Recomendada para Fondeo
-```pinescript
-// Configuración conservadora
-max_perdida_diaria = 2.5    // Aún más conservador
-max_perdida_total = 5.0     // Margen de seguridad
-stop_loss_percent = 2.0     // Stop más ajustado
-default_qty_value = 5       // Posición más pequeña
-```
+## 9. Cronograma de Implementación
 
-## Evolución y Desarrollo
+### Fase de Preparación (Mes 1)
+- Desarrollo y backtesting del algoritmo
+- Configuración de plataformas de trading
+- Establecimiento de métricas de control
 
-### Versiones Desarrolladas
-1. **v1.0**: Estrategia básica con estocástico
-2. **v1.1**: Adición de controles de fondeo
-3. **v1.2**: Filtros de horario (7:00-20:00 Madrid)
-4. **v1.3**: Optimizaciones de tamaño (7% → 5%)
-5. **v2.0**: Versión final simplificada (este código)
+### Fase de Prueba (Mes 2)
+- Trading en cuenta demo con condiciones reales
+- Refinamiento de parámetros
+- Validación de sistemas de riesgo
 
-### Mejoras Implementadas
-- Sistema de protección multicapa
-- Controles específicos para cuentas de fondeo
-- Interfaz de monitoreo en tiempo real
-- Optimización de parámetros mediante backtesting
+### Fase de Ejecución (Meses 3-14)
+- Implementación en cuenta real de fondeo
+- Monitoreo continuo y ajustes menores
+- Progresión hacia objetivos de fase
 
-## Código Fuente
+## 10. Conclusiones y Recomendaciones
 
-El código completo está disponible en el archivo adjunto. Características principales del implementación:
+La estrategia propuesta equilibra la necesidad de generar retornos consistentes con la preservación estricta del capital requerida en cuentas de fondeo. El uso del indicador estocástico en el Dow Jones ofrece un marco robusto para identificar oportunidades de trading mientras mantiene un perfil de riesgo conservador.
 
-- **Lenguaje**: Pine Script v5
-- **Tipo**: Strategy (no indicator)
-- **Compatibilidad**: TradingView Pro/Premium
-- **Dependencias**: Ninguna (usa funciones nativas)
+**Factores Críticos de Éxito:**
+1. Disciplina absoluta en la gestión de riesgo
+2. Paciencia para esperar configuraciones de alta probabilidad
+3. Adaptabilidad a diferentes condiciones de mercado
+4. Monitoreo continuo y optimización de parámetros
 
-## Disclaimer
+**Próximos Pasos:**
+1. Desarrollo del algoritmo con los parámetros especificados
+2. Backtesting exhaustivo en diferentes períodos de mercado
+3. Implementación gradual con supervisión constante
 
-**ADVERTENCIA**: Este software es solo para fines educativos y de backtesting. El trading con instrumentos financieros conlleva riesgos significativos. Las pérdidas pueden exceder la inversión inicial. 
-
-- No garantiza resultados futuros basados en performance pasada
-- Requiere comprensión completa de los riesgos involucrados
-- Recomendamos testing exhaustivo antes del uso en cuenta real
-- Consulte con un asesor financiero calificado
-
-## Licencia y Uso
-
-Código abierto para uso personal y educativo. Prohibida la distribución comercial sin autorización. El usuario asume toda la responsabilidad por el uso de esta estrategia.
-
----
-
-**Última actualización**: Septiembre 2025  
-**Versión**: 2.0 Final  
-**Estado**: Estable para backtesting
+La clave del éxito en cuentas de fondeo radica en la consistencia y la gestión prudente del riesgo, más que en la búsqueda de grandes ganancias individuales.
