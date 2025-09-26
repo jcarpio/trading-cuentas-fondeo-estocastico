@@ -114,27 +114,27 @@ Panel en tiempo real que muestra:
 ### Performance Visual
 
 #### Gráfico de Equity
-![Curva de Equity](image1-overview.png)
+![Curva de Equity](1.png)
 *Evolución del capital desde enero 2019 hasta septiembre 2025. Muestra crecimiento constante con drawdown máximo controlado de 2.57%, ideal para cuentas de fondeo.*
 
 #### Métricas de Performance
-![Performance Metrics](image2-performance.png)
+![Performance Metrics](2.png)
 *Resumen detallado de métricas: Net Profit $49,078 (+4.91%), Gross Profit $188,388 vs Gross Loss $139,309. Máximo equity run-up de 5.21%.*
 
 #### Análisis de Trades
-![Trade Analysis](image3-trades.png)
+![Trade Analysis](3.png)
 *Distribución de 210 trades totales: 127 ganadoras (60.48%) y 83 perdedoras. Promedio por operación de $233.71 con consistencia notable.*
 
 #### Ratios de Riesgo/Rendimiento
-![Risk Performance Ratios](image4-ratios.png)
+![Risk Performance Ratios](4.png)
 *Sharpe Ratio: -0.331, Sortino Ratio: -0.388, Profit Factor: 1.352. Los ratios negativos indican alta volatilidad relativa al rendimiento, típico en estrategias de momentum.*
 
 #### Lista de Trades Recientes
-![Recent Trades](image5-trades-list.png)
+![Recent Trades](5.png)
 *Últimas operaciones mostrando la consistencia de la estrategia. Trade #211 abierto con +$40.26 (+0.04%), demostrando el control de riesgo efectivo.*
 
 #### Historial de Trades 2020
-![2020 Trades History](image6-trades-2020.png)
+![2020 Trades History](6.png)
 *Ejemplo de trades durante 2020, mostrando variedad de resultados: desde pérdidas por SL 2.5% hasta ganancias significativas por salidas de estocástico.*
 
 ## Advertencias y Consideraciones
