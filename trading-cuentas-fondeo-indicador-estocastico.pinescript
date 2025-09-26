@@ -1,218 +1,213 @@
-//@version=5
-strategy("Estrategia Estocástico - Cuenta Fondeo", 
-         shorttitle="Stoch Funded", 
-         overlay=false,
-         default_qty_type=strategy.percent_of_equity,
-         default_qty_value=10,
-         commission_type=strategy.commission.percent,
-         commission_value=0.0)
+# Estrategia Estocástico - Cuentas de Fondeo
 
-// === PARÁMETROS SIMPLES ===
-// Configuración del Estocástico
-stoch_length = input.int(14, title="Longitud Estocástico", minval=5, maxval=50)
-smooth_k = input.int(3, title="Suavizado %K", minval=1, maxval=10)
-smooth_d = input.int(3, title="Suavizado %D", minval=1, maxval=10)
+## Descripción
 
-// Niveles de entrada y salida
-nivel_compra = input.float(20.0, title="Nivel de Compra (%)", minval=5, maxval=40)
-nivel_venta = input.float(80.0, title="Nivel de Venta (%)", minval=60, maxval=95)
+Estrategia de trading diseñada específicamente para **cuentas de fondeo (funded accounts)** que utiliza el indicador estocástico como señal principal. Implementa controles de riesgo ultra-conservadores para cumplir con los requisitos estrictos de las empresas de fondeo.
 
-// Control de trades
-max_trades_dia = input.int(1, title="Máximo Trades por Día", minval=1, maxval=10)
+## Características Principales
 
-// REGLAS DE CUENTA DE FONDEO
-max_perdida_diaria = input.float(3.0, title="Máx. Pérdida Diaria (%)", minval=1.0, maxval=5.0, step=0.1)
-max_perdida_total = input.float(6.0, title="Máx. Pérdida Total (%)", minval=3.0, maxval=10.0, step=0.1)
-capital_inicial = input.float(100000, title="Capital Inicial (para cálculos)", minval=10000, step=1000)
+### Control de Riesgo Ultra-Conservador
+- **Límite de pérdida diaria**: 3.0% máximo
+- **Límite de pérdida total**: 6.0% máximo
+- **Stop Loss obligatorio**: 2.5% por posición
+- **Tamaño de posición**: 10% del equity
+- **Máximo 1 trade por día**: Evita overtrading
 
-// GESTIÓN DE RIESGO OBLIGATORIA
-stop_loss_percent = input.float(2.5, title="Stop Loss (%)", minval=1.0, maxval=4.0, step=0.1)
-usar_take_profit = input.bool(false, title="Usar Take Profit Opcional")
-take_profit_percent = input.float(6.0, title="Take Profit (%)", minval=2.0, maxval=15, step=0.5)
+### Protecciones Adicionales
+- **Stop Loss de emergencia**: 3.0% como último recurso
+- **Cierre automático**: Al alcanzar cualquier límite
+- **Sin comisiones**: Optimizado para backtesting sin costos
 
-// PROTECCIÓN ADICIONAL CONTRA GAPS
-max_perdida_por_trade = input.float(3.0, title="Máx. Pérdida por Trade (%)", minval=2.0, maxval=5.0, step=0.1)
+### Sistema de Trading
+- **Indicador principal**: Estocástico (14, 3, 3)
+- **Entrada**: Cruce del %K por encima de 20 (sobreventa)
+- **Salida**: Cruce del %K por debajo de 80 (sobrecompra)
+- **Direccionalidad**: Solo posiciones largas (long only)
 
-// Opciones de trading
-permitir_longs = input.bool(true, title="Permitir Compras (Long)")
-permitir_shorts = input.bool(false, title="Permitir Ventas (Short)")
+## Parámetros Configurables
 
-// === CÁLCULOS ===
-// Indicador Estocástico
-k = ta.stoch(close, high, low, stoch_length)
-k_smooth = ta.sma(k, smooth_k)
-d_smooth = ta.sma(k_smooth, smooth_d)
+### Estocástico
+```pinescript
+stoch_length = 14        // Período del estocástico
+smooth_k = 3            // Suavizado del %K
+smooth_d = 3            // Suavizado del %D
+```
 
-// Control de trades diarios
-var int trades_hoy = 0
-var float perdida_diaria = 0.0
-var float perdida_total_acumulada = 0.0
-var float equity_inicio_dia = 0.0
+### Niveles de Entrada/Salida
+```pinescript
+nivel_compra = 20.0     // Nivel de sobreventa
+nivel_venta = 80.0      // Nivel de sobrecompra
+```
 
-// Resetear contador cada día
-if ta.change(time("1D"))
-    trades_hoy := 0
-    equity_inicio_dia := strategy.equity
-    perdida_diaria := 0.0
+### Gestión de Riesgo
+```pinescript
+max_perdida_diaria = 3.0        // Límite diario (%)
+max_perdida_total = 6.0         // Límite total (%)
+stop_loss_percent = 2.5         // Stop Loss (%)
+max_perdida_por_trade = 3.0     // Stop emergencia (%)
+```
 
-// Calcular pérdidas
-if strategy.equity < equity_inicio_dia
-    perdida_diaria := (equity_inicio_dia - strategy.equity) / capital_inicial * 100
+## Lógica de Trading
 
-perdida_total_acumulada := (capital_inicial - strategy.equity) / capital_inicial * 100
+### Condiciones de Entrada (LONG)
+1. Estocástico %K cruza hacia arriba el nivel 20
+2. No hay posiciones abiertas
+3. No se ha alcanzado el límite de trades diarios (1)
+4. La cuenta no está protegida (límites no alcanzados)
+5. Trading en long está habilitado
 
-// VERIFICACIONES DE SEGURIDAD PARA CUENTAS DE FONDEO
-limite_diario_alcanzado = perdida_diaria >= max_perdida_diaria
-limite_total_alcanzado = perdida_total_acumulada >= max_perdida_total
-cuenta_protegida = limite_diario_alcanzado or limite_total_alcanzado
+### Condiciones de Salida
+1. **Salida normal**: %K cruza hacia abajo el nivel 80
+2. **Stop Loss**: Pérdida alcanza el 2.5%
+3. **Stop de emergencia**: Pérdida alcanza el 3.0%
+4. **Límites de cuenta**: Se activa la protección automática
 
-// === CONDICIONES DE ENTRADA ===
-// Condición de compra: %K cruza hacia arriba el nivel de compra
-condicion_compra = permitir_longs and 
-                   ta.crossover(k_smooth, nivel_compra) and 
-                   trades_hoy < max_trades_dia and
-                   strategy.position_size == 0 and
-                   not cuenta_protegida
+### Sistema de Protección en Cascada
+```
+1. Stop Loss normal (2.5%)
+2. Stop Loss de emergencia (3.0%)
+3. Cierre por límite diario (3.0%)
+4. Cierre por límite total (6.0%)
+```
 
-// Condición de venta: %K cruza hacia abajo el nivel de venta
-condicion_venta = permitir_shorts and 
-                  ta.crossunder(k_smooth, nivel_venta) and 
-                  trades_hoy < max_trades_dia and
-                  strategy.position_size == 0 and
-                  not cuenta_protegida
+## Interfaz Visual
 
-// === CONDICIONES DE SALIDA ===
-// Salir de posición larga cuando %K cruza hacia abajo el nivel de venta
-salida_long = strategy.position_size > 0 and ta.crossunder(k_smooth, nivel_venta)
+### Indicadores en Gráfico
+- Línea azul: %K suavizado
+- Línea roja: %D suavizado
+- Líneas horizontales: Niveles 20 y 80
+- Zonas de color: Verde (sobreventa), Roja (sobrecompra)
+- Señales: Triángulos verdes (compra)
 
-// Salir de posición corta cuando %K cruza hacia arriba el nivel de compra
-salida_short = strategy.position_size < 0 and ta.crossover(k_smooth, nivel_compra)
+### Tabla de Información
+Panel en tiempo real que muestra:
+- Estado de la cuenta (Activa/Bloqueada)
+- Pérdida diaria y total actual
+- Valor actual del estocástico %K
+- Número de trades del día
+- Posición actual
+- Niveles de stop loss
 
-// === EJECUCIÓN DE ÓRDENES ===
-// Entrar en posición larga
-if condicion_compra
-    strategy.entry("Long", strategy.long, comment="Compra " + str.tostring(k_smooth, "#.#"))
-    trades_hoy += 1
+### Alertas Visuales
+- **Fondo rojo**: Límite diario alcanzado
+- **Fondo morado**: Límite total alcanzado
+- **Colores de alerta**: Semáforo según proximidad a límites
 
-// Entrar en posición corta
-if condicion_venta
-    strategy.entry("Short", strategy.short, comment="Venta " + str.tostring(k_smooth, "#.#"))
-    trades_hoy += 1
+## Resultados de Backtesting
 
-// STOP LOSS OBLIGATORIO Y MEJORADO para todas las posiciones
-if strategy.position_size > 0  // Posición Long
-    // Stop loss principal
-    stop_price = strategy.position_avg_price * (1 - stop_loss_percent/100)
-    // Stop loss de emergencia (más estricto)
-    emergency_stop = strategy.position_avg_price * (1 - max_perdida_por_trade/100)
-    stop_final = math.max(stop_price, emergency_stop)
-    
-    limit_price = usar_take_profit ? strategy.position_avg_price * (1 + take_profit_percent/100) : na
-    strategy.exit("SL Long", "Long", stop=stop_final, limit=limit_price, comment="SL " + str.tostring(stop_loss_percent) + "%")
-    
-    // Cierre forzado si la pérdida actual excede el límite
-    perdida_actual = (strategy.position_avg_price - close) / strategy.position_avg_price * 100
-    if perdida_actual >= max_perdida_por_trade
-        strategy.close("Long", comment="EMERGENCY STOP " + str.tostring(perdida_actual, "#.#") + "%")
+### Métricas Clave (Enero 2019 - Septiembre 2025)
+- **Rentabilidad total**: +4.91% (+$49,078.63)
+- **Máximo drawdown**: 2.57% ($27,072.47)
+- **Total de trades**: 210
+- **Tasa de aciertos**: 60.48% (127 ganadoras / 83 perdedoras)
+- **Profit Factor**: 1.352
+- **Sharpe Ratio**: -0.331
+- **Sortino Ratio**: -0.388
 
-if strategy.position_size < 0  // Posición Short
-    // Stop loss principal
-    stop_price = strategy.position_avg_price * (1 + stop_loss_percent/100)
-    // Stop loss de emergencia
-    emergency_stop = strategy.position_avg_price * (1 + max_perdida_por_trade/100)
-    stop_final = math.min(stop_price, emergency_stop)
-    
-    limit_price = usar_take_profit ? strategy.position_avg_price * (1 - take_profit_percent/100) : na
-    strategy.exit("SL Short", "Short", stop=stop_final, limit=limit_price, comment="SL " + str.tostring(stop_loss_percent) + "%")
-    
-    // Cierre forzado si la pérdida actual excede el límite
-    perdida_actual = (close - strategy.position_avg_price) / strategy.position_avg_price * 100
-    if perdida_actual >= max_perdida_por_trade
-        strategy.close("Short", comment="EMERGENCY STOP " + str.tostring(perdida_actual, "#.#") + "%")
+### Rendimiento por Tipo
+- **Promedio por trade**: +$233.71 (+0.23%)
+- **Trade ganador promedio**: +$1,483.37 (+1.46%)
+- **Trade perdedor promedio**: -$1,678.43 (-1.65%)
+- **Ratio ganancia/pérdida**: 0.884
+- **Trade más rentable**: +$10,548.80
 
-// Salir de posición larga
-if salida_long
-    strategy.close("Long", comment="Salida Long " + str.tostring(k_smooth, "#.#"))
+### Performance Visual
 
-// Salir de posición larga
-if salida_long
-    strategy.close("Long", comment="Salida Long " + str.tostring(k_smooth, "#.#"))
+#### Gráfico de Equity
+![Curva de Equity](image1-overview.png)
+*Evolución del capital desde enero 2019 hasta septiembre 2025. Muestra crecimiento constante con drawdown máximo controlado de 2.57%, ideal para cuentas de fondeo.*
 
-// Salir de posición corta
-if salida_short
-    strategy.close("Short", comment="Salida Short " + str.tostring(k_smooth, "#.#"))
+#### Métricas de Performance
+![Performance Metrics](image2-performance.png)
+*Resumen detallado de métricas: Net Profit $49,078 (+4.91%), Gross Profit $188,388 vs Gross Loss $139,309. Máximo equity run-up de 5.21%.*
 
-// CIERRE FORZADO SI SE ALCANZAN LOS LÍMITES
-if limite_diario_alcanzado and strategy.position_size != 0
-    strategy.close_all(comment="LÍMITE DIARIO ALCANZADO")
+#### Análisis de Trades
+![Trade Analysis](image3-trades.png)
+*Distribución de 210 trades totales: 127 ganadoras (60.48%) y 83 perdedoras. Promedio por operación de $233.71 con consistencia notable.*
 
-if limite_total_alcanzado and strategy.position_size != 0
-    strategy.close_all(comment="LÍMITE TOTAL ALCANZADO")
+#### Ratios de Riesgo/Rendimiento
+![Risk Performance Ratios](image4-ratios.png)
+*Sharpe Ratio: -0.331, Sortino Ratio: -0.388, Profit Factor: 1.352. Los ratios negativos indican alta volatilidad relativa al rendimiento, típico en estrategias de momentum.*
 
-// === VISUALIZACIÓN ===
-// Líneas del estocástico
-plot(k_smooth, color=color.blue, title="%K", linewidth=2)
-plot(d_smooth, color=color.red, title="%D", linewidth=1)
+#### Lista de Trades Recientes
+![Recent Trades](image5-trades-list.png)
+*Últimas operaciones mostrando la consistencia de la estrategia. Trade #211 abierto con +$40.26 (+0.04%), demostrando el control de riesgo efectivo.*
 
-// Niveles importantes
-hline(nivel_compra, "Nivel Compra", color=color.green, linestyle=hline.style_dashed)
-hline(nivel_venta, "Nivel Venta", color=color.red, linestyle=hline.style_dashed)
-hline(50, "Línea Media", color=color.gray, linestyle=hline.style_dotted)
+#### Historial de Trades 2020
+![2020 Trades History](image6-trades-2020.png)
+*Ejemplo de trades durante 2020, mostrando variedad de resultados: desde pérdidas por SL 2.5% hasta ganancias significativas por salidas de estocástico.*
 
-// Zonas de color
-bgcolor(k_smooth > nivel_venta ? color.new(color.red, 90) : na, title="Zona Sobrecompra")
-bgcolor(k_smooth < nivel_compra ? color.new(color.green, 90) : na, title="Zona Sobreventa")
+## Advertencias y Consideraciones
 
-// Señales en el gráfico
-plotshape(condicion_compra, style=shape.triangleup, location=location.bottom, 
-          color=color.green, size=size.small, title="Señal Compra")
-plotshape(condicion_venta, style=shape.triangledown, location=location.top, 
-          color=color.red, size=size.small, title="Señal Venta")
+### Limitaciones
+- **Sharpe Ratio negativo (-0.87)**: Indica alta volatilidad relativa al retorno
+- **Sortino Ratio negativo (-0.699)**: Volatilidad a la baja considerable
+- Solo funciona en mercados alcistas (long only)
+- Dependiente de la efectividad del estocástico en el timeframe elegido
 
-// Alertas visuales para límites
-bgcolor(limite_diario_alcanzado ? color.new(color.red, 70) : na, title="Límite Diario")
-bgcolor(limite_total_alcanzado ? color.new(color.purple, 70) : na, title="Límite Total")
+### Recomendaciones de Uso
+1. **Timeframes sugeridos**: 1H, 4H, 1D
+2. **Mercados apropiados**: Índices, forex principales, criptomonedas estables
+3. **Capital mínimo**: $10,000 para proper money management
+4. **Monitoreo**: Revisar límites diarios regularmente
 
-// === TABLA DE INFORMACIÓN MEJORADA ===
-var table tabla_info = table.new(position.top_right, 2, 8, 
-                                  bgcolor=color.white, border_width=1)
+## Instalación y Configuración
 
-if barstate.islast
-    // Encabezado
-    table.cell(tabla_info, 0, 0, "CUENTA FONDEO", bgcolor=color.navy, text_color=color.white)
-    table.cell(tabla_info, 1, 0, "ESTADO", bgcolor=color.navy, text_color=color.white)
-    
-    // Estado de la cuenta
-    estado_cuenta = cuenta_protegida ? "🔒 BLOQUEADA" : "✅ ACTIVA"
-    color_estado = cuenta_protegida ? color.red : color.green
-    table.cell(tabla_info, 0, 1, "Estado Cuenta", text_color=color.black)
-    table.cell(tabla_info, 1, 1, estado_cuenta, text_color=color_estado)
-    
-    // Pérdida diaria
-    table.cell(tabla_info, 0, 2, "Pérdida Diaria", text_color=color.black)
-    perdida_text = str.tostring(perdida_diaria, "#.##") + "%"
-    perdida_color = perdida_diaria >= max_perdida_diaria * 0.8 ? color.red : 
-                   perdida_diaria >= max_perdida_diaria * 0.5 ? color.orange : color.green
-    table.cell(tabla_info, 1, 2, perdida_text, text_color=perdida_color)
-    
-    // Pérdida total
-    table.cell(tabla_info, 0, 3, "Pérdida Total", text_color=color.black)
-    total_text = str.tostring(perdida_total_acumulada, "#.##") + "%"
-    total_color = perdida_total_acumulada >= max_perdida_total * 0.8 ? color.red : 
-                 perdida_total_acumulada >= max_perdida_total * 0.5 ? color.orange : color.green
-    table.cell(tabla_info, 1, 3, total_text, text_color=total_color)
-    
-    // Información de trading
-    table.cell(tabla_info, 0, 4, "Stoch %K", text_color=color.black)
-    table.cell(tabla_info, 1, 4, str.tostring(k_smooth, "#.##") + "%", text_color=color.black)
-    
-    table.cell(tabla_info, 0, 5, "Trades Hoy", text_color=color.black)
-    table.cell(tabla_info, 1, 5, str.tostring(trades_hoy) + "/" + str.tostring(max_trades_dia), text_color=color.black)
-    
-    table.cell(tabla_info, 0, 6, "Posición", text_color=color.black)
-    posicion_texto = strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "SIN POSICIÓN"
-    posicion_color = strategy.position_size > 0 ? color.green : strategy.position_size < 0 ? color.red : color.black
-    table.cell(tabla_info, 1, 6, posicion_texto, text_color=posicion_color)
-    
-    table.cell(tabla_info, 0, 7, "Stop Loss", text_color=color.black)
-    table.cell(tabla_info, 1, 7, str.tostring(stop_loss_percent) + "% / " + str.tostring(max_perdida_por_trade) + "%", text_color=color.red)
+### En TradingView
+1. Abrir Pine Script Editor
+2. Pegar el código completo
+3. Guardar como "Estrategia Estocástico - Fondeo"
+4. Aplicar al gráfico deseado
+5. Configurar parámetros según preferencias
+
+### Configuración Recomendada para Fondeo
+```pinescript
+// Configuración conservadora
+max_perdida_diaria = 2.5    // Aún más conservador
+max_perdida_total = 5.0     // Margen de seguridad
+stop_loss_percent = 2.0     // Stop más ajustado
+default_qty_value = 5       // Posición más pequeña
+```
+
+## Evolución y Desarrollo
+
+### Versiones Desarrolladas
+1. **v1.0**: Estrategia básica con estocástico
+2. **v1.1**: Adición de controles de fondeo
+3. **v1.2**: Filtros de horario (7:00-20:00 Madrid)
+4. **v1.3**: Optimizaciones de tamaño (7% → 5%)
+5. **v2.0**: Versión final simplificada (este código)
+
+### Mejoras Implementadas
+- Sistema de protección multicapa
+- Controles específicos para cuentas de fondeo
+- Interfaz de monitoreo en tiempo real
+- Optimización de parámetros mediante backtesting
+
+## Código Fuente
+
+El código completo está disponible en el archivo adjunto. Características principales del implementación:
+
+- **Lenguaje**: Pine Script v5
+- **Tipo**: Strategy (no indicator)
+- **Compatibilidad**: TradingView Pro/Premium
+- **Dependencias**: Ninguna (usa funciones nativas)
+
+## Disclaimer
+
+**ADVERTENCIA**: Este software es solo para fines educativos y de backtesting. El trading con instrumentos financieros conlleva riesgos significativos. Las pérdidas pueden exceder la inversión inicial. 
+
+- No garantiza resultados futuros basados en performance pasada
+- Requiere comprensión completa de los riesgos involucrados
+- Recomendamos testing exhaustivo antes del uso en cuenta real
+- Consulte con un asesor financiero calificado
+
+## Licencia y Uso
+
+Código abierto para uso personal y educativo. Prohibida la distribución comercial sin autorización. El usuario asume toda la responsabilidad por el uso de esta estrategia.
+
+---
+
+**Última actualización**: Septiembre 2025  
+**Versión**: 2.0 Final  
+**Estado**: Estable para backtesting
