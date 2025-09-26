@@ -570,7 +570,7 @@ El gráfico muestra un crecimiento constante y sostenido del capital a lo largo 
 
 ### **14.2 Métricas de Riesgo y Rentabilidad**
 
-![Risk Performance Ratios](risk_performance_ratios.png)
+![Risk Performance Ratios](risk-ratios.png)
 
 **Ratios de Rendimiento Ajustado al Riesgo:**
 - **Sharpe Ratio:** -0.647 (negativo debido al bajo rendimiento relativo al riesgo libre de riesgo)
@@ -583,7 +583,7 @@ Los ratios Sharpe y Sortino negativos sugieren que la estrategia, aunque rentabl
 
 ### **14.3 Análisis Detallado de Trades**
 
-![Trades Analysis](trades_analysis.png)
+![Trades Analysis](trades-analysis.png)
 
 **Distribución de Resultados por Trade:**
 - **P&L Promedio por Trade:** $143.54 (0.14%)
@@ -618,7 +618,7 @@ La estrategia generó un retorno del 2.14% mientras que una estrategia buy & hol
 
 ### **14.5 Análisis por Tipo de Operación**
 
-![Trades Analysis Extended](trades_analysis_extended.png)
+![Trades Analysis Extended](trades-analysis2.png)
 
 **Especialización en Operaciones Long:**
 - **Total Trades Long:** 149 (100% de las operaciones)
